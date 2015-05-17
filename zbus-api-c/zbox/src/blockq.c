@@ -55,17 +55,8 @@ void blockq_push(blockq_t *self, void *data){
 	pthread_mutex_unlock(&self->mutex);
 }
 
-
-void* blockq_pop(blockq_t *self) {
-	assert(self); 
-	
+static void* safe_pop(blockq_t* self){
 	void* res;
-	pthread_mutex_lock(&self->mutex);
-
-	while (self->first == NULL) {  //Need to loop to handle spurious wakeups
-		pthread_cond_wait(&self->cond, &self->mutex);
-	}
-
 	node_t* node = self->first;
 	self->first = self->first->next;
 	self->length--;
@@ -76,7 +67,35 @@ void* blockq_pop(blockq_t *self) {
 	}
 	res = node->msg; 
 	free(node);
+	return res;
+}
 
+
+void* blockq_pop(blockq_t *self) {
+	assert(self); 
+	
+	void* res;
+	pthread_mutex_lock(&self->mutex);
+
+	while (self->first == NULL) {  //Need to loop to handle spurious wakeups
+		pthread_cond_wait(&self->cond, &self->mutex);
+	} 
+	res = safe_pop(self);
+	pthread_mutex_unlock(&self->mutex);
+	return res;
+}
+
+void* blockq_pop_timed(blockq_t *self, int64_t millis_timeout) {
+	assert(self); 
+
+	void* res = NULL;
+	pthread_mutex_lock(&self->mutex);
+	if(self->first == NULL){
+		pthread_cond_timedwait(&self->cond, &self->mutex, millis_timeout);
+	}
+	if(self->first != NULL){
+		res = safe_pop(self);
+	}
 	pthread_mutex_unlock(&self->mutex);
 	return res;
 }

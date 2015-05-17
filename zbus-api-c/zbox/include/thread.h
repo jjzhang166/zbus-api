@@ -118,6 +118,7 @@ typedef struct {
 ZBOX_EXPORT int pthread_cond_init(pthread_cond_t *cond, const void *unused);
 ZBOX_EXPORT int pthread_cond_destroy(pthread_cond_t *cond);
 ZBOX_EXPORT int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
+
 ZBOX_EXPORT int pthread_cond_signal(pthread_cond_t *cond); 
 ZBOX_EXPORT int pthread_cond_broadcast(pthread_cond_t *cond);
 
@@ -125,6 +126,9 @@ ZBOX_EXPORT int  pthread_detach (pthread_t thread);
 ZBOX_EXPORT int  pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset);
 ZBOX_EXPORT void pthread_exit(void *value_ptr); 
 ZBOX_EXPORT int  pthread_join(pthread_t* thread, void **retval);
+
+//NOT compatible to pthread
+ZBOX_EXPORT int pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t* mutex, int64_t millis);
 
 
 #ifndef siginfo_t

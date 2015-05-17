@@ -157,6 +157,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\buffer.c"
+				>
+			</File>
+			<File
 				RelativePath=".\hash.c"
 				>
 			</File>
@@ -188,6 +192,10 @@
 			>
 			<File
 				RelativePath="..\include\blockq.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\buffer.h"
 				>
 			</File>
 			<File

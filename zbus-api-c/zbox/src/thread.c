@@ -177,8 +177,8 @@ int pthread_cond_destroy(pthread_cond_t *cond) {
     return 0;
 }
 
-int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
-    int last_waiter;
+int pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t* mutex, int64_t millis){
+	int last_waiter;
 
     EnterCriticalSection(&cond->waiters_lock);
     cond->waiters++;
@@ -193,7 +193,7 @@ int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
     LeaveCriticalSection(mutex);
 
     /* let's wait - ignore return value */
-    WaitForSingleObject(cond->sema, INFINITE);
+    WaitForSingleObject(cond->sema, millis);
 
     /*
      * Decrease waiters count. If we are the last waiter, then we must
@@ -227,6 +227,10 @@ int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
     EnterCriticalSection(mutex);
 
     return 0;
+}
+
+int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
+	return pthread_cond_timedwait(cond, mutex, INFINITE);
 }
 
 /*

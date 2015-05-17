@@ -5,6 +5,7 @@
 #include "log.h"
 #include "msg.h"
 #include "thread.h"
+#include "buffer.h"
 
 
 #ifdef __WINDOWS__
@@ -57,8 +58,8 @@ struct rclient{ //remoting client
 	int fd;           //socket fd
 	char* host;       //host ip
 	int port;         //port, default to 15555  
-	iobuf_t* rbuf;
-	iobuf_t* wbuf;
+	buf_t* rbuf;
+	buf_t* wbuf;
 	char*	 msgid_match;
 	hash_t*  result_table; 
 }; 
@@ -97,10 +98,10 @@ bool rclient_reconnect(rclient_t* self, int reconnect_msecs){
 		self->fd = 0;
 	}  
 	if(self->rbuf){
-		iobuf_destroy(&self->rbuf);
+		buf_destroy(&self->rbuf);
 	}
 	if(self->wbuf){
-		iobuf_destroy(&self->wbuf);
+		buf_destroy(&self->wbuf);
 	}
 	if(self->msgid_match){
 		free(self->msgid_match);
@@ -109,7 +110,7 @@ bool rclient_reconnect(rclient_t* self, int reconnect_msecs){
 		hash_destroy(&self->result_table);
 	}
 
-	self->rbuf = iobuf_new(2048);
+	self->rbuf = buf_new(2048);
 	self->wbuf = NULL;
 	self->result_table = hash_new(&hash_ctrl_str11_msg01, NULL);
 	self->msgid_match = strdup("");
@@ -117,7 +118,7 @@ bool rclient_reconnect(rclient_t* self, int reconnect_msecs){
 	while(rc = net_connect(&self->fd, self->host, self->port)){
 		if(reconnect_msecs<=0) break; //no reconnect
 		net_close(self->fd);
-		printf("Try to reconnect(%s:%d) in %d ms...", self->host, self->port, reconnect_msecs);
+		printf("Try to reconnect(%s:%d) in %d ms...\n", self->host, self->port, reconnect_msecs);
 		sleep(reconnect_msecs);
 	}
 	return rc == 0;
@@ -132,10 +133,10 @@ void rclient_destroy(rclient_t** self_p){
 		net_close(self->fd);
 	}
 	if(self->rbuf){
-		iobuf_destroy(&self->rbuf);
+		buf_destroy(&self->rbuf);
 	}
 	if(self->wbuf){
-		iobuf_destroy(&self->wbuf);
+		buf_destroy(&self->wbuf);
 	}
 	if(self->msgid_match){
 		free(self->msgid_match);
@@ -178,18 +179,18 @@ rclient_write(rclient_t* self, int* done){
 		return 0;
 	} 
 
-	begin = iobuf_begin(self->wbuf);
-	len = iobuf_remaining(self->wbuf);
+	begin = buf_begin(self->wbuf);
+	len = buf_remaining(self->wbuf);
 	n = net_send(self->fd, begin, len);
 	
 	if(n == len){
-		iobuf_destroy(&self->wbuf);
+		buf_destroy(&self->wbuf);
 		if(done) *done = 1;
 		return n;
 	} 
 
 	if( n > 0 ){ 
-		iobuf_drain(self->wbuf, n);  
+		buf_drain(self->wbuf, n);  
 		if(done) *done = 0;
 		return n;
 	}
@@ -221,15 +222,15 @@ int rclient_read(rclient_t* self, msg_t** msg_p, int timeout){
 	n = net_recv(self->fd, buf, sizeof(buf));
 	if( n>=0 ){
 		msg_t* msg;
-		iobuf_t* dup;
+		buf_t* dup;
 		int mv = 0;
-		iobuf_put(self->rbuf, buf, n); 
+		buf_put(self->rbuf, buf, n); 
 
-		dup = iobuf_dup(self->rbuf); //shallow copy
-		iobuf_flip(dup);
+		dup = buf_dup(self->rbuf); //shallow copy
+		buf_flip(dup);
 		msg = msg_decode(dup);
 		mv = dup->position;
-		iobuf_destroy(&dup);
+		buf_destroy(&dup);
 		
 		if(msg){
 			char* msgid = msg_get_msgid(msg);
@@ -238,7 +239,7 @@ int rclient_read(rclient_t* self, msg_t** msg_p, int timeout){
 			} else {
 				*msg_p = msg;
 			} 
-			iobuf_mv(self->rbuf, mv);
+			buf_mv(self->rbuf, mv);
 			return n;
 		}
 	}
@@ -249,7 +250,7 @@ int rclient_send(rclient_t* self, msg_t* msg){
 	int rc = 0; 
 	int done;
 	char* msgid;
-	iobuf_t* buf = iobuf_new(1024);
+	buf_t* buf = buf_new(1024);
 	mark_msg(msg);
 	msgid = msg_get_msgid(msg);
 	if(msgid){
@@ -257,13 +258,13 @@ int rclient_send(rclient_t* self, msg_t* msg){
 	}
 	msg_encode(msg, buf);
 	msg_destroy(&msg); 
-	//iobuf_print(buf);
-	iobuf_flip(buf);
+	//buf_print(buf);
+	buf_flip(buf);
 
 	if(self->wbuf==NULL){
 		self->wbuf = buf;
 	} else {
-		iobuf_putbuf(self->wbuf, buf);
+		buf_putbuf(self->wbuf, buf);
 	} 
 	do{
 		rc = rclient_write(self, &done);

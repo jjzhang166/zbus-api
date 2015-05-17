@@ -1,5 +1,6 @@
-#include "msg.h"   
+#include "msg.h" 
 #include "hash.h" 
+#include "buffer.h"
 
 
 struct meta{
@@ -56,7 +57,7 @@ void    meta_destroy(meta_t** self_p);
 char*   meta_get_param(meta_t* self, char* key);
 void    meta_set_param(meta_t* self, char* key, char* val);
 meta_t* meta_parse(char* meta);
-void    meta_encode(meta_t* self, iobuf_t* buf);
+void    meta_encode(meta_t* self, buf_t* buf);
 
 const char* SPLIT_CHARS = " ";
 const char* const HTTP_METHODS[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "OPTIONS", 0};
@@ -211,21 +212,21 @@ DONE:
 }
  
 
-void meta_encode(meta_t* self, iobuf_t* buf){ 
+void meta_encode(meta_t* self, buf_t* buf){ 
 	if(self->status){ 
-		iobuf_putstr(buf,"HTTP/1.1 ");
-		iobuf_putstr(buf,self->status);
-		iobuf_putstr(buf," ");
-		iobuf_putstr(buf, http_status(self->status));
-		iobuf_putstr(buf,"\r\n");
+		buf_putstr(buf,"HTTP/1.1 ");
+		buf_putstr(buf,self->status);
+		buf_putstr(buf," ");
+		buf_putstr(buf, http_status(self->status));
+		buf_putstr(buf,"\r\n");
 		return;
 	}
 	if(!self->uri) return; 
 	
-	iobuf_putstr(buf,self->method);
-	iobuf_putstr(buf," ");
-	iobuf_putstr(buf, self->uri); 
-	iobuf_putstr(buf, " HTTP/1.1\r\n"); 
+	buf_putstr(buf,self->method);
+	buf_putstr(buf," ");
+	buf_putstr(buf, self->uri); 
+	buf_putstr(buf, " HTTP/1.1\r\n"); 
 }
 
 //////////////////////////MESSAGE////////////////////
@@ -442,10 +443,10 @@ int msg_is_status500(msg_t* self){
 
 
 
-static int find_head_length(iobuf_t* buf){ 
-	char* begin = iobuf_begin(buf);
+static int find_head_length(buf_t* buf){ 
+	char* begin = buf_begin(buf);
 	char* p = begin;
-	char* end = iobuf_end(buf);
+	char* end = buf_end(buf);
 	while(p+3<end){
 		if(*(p+0)=='\r' && *(p+1)=='\n' && *(p+2)=='\r' && *(p+3)=='\n'){
 			return p+4-begin; 
@@ -480,7 +481,7 @@ static msg_t* msg_parse_head(char* buf){
 }
 
 
-void msg_encode(msg_t* self, iobuf_t* buf){
+void msg_encode(msg_t* self, buf_t* buf){
 	hash_iter_t* iter;
 	hash_entry_t* e;
 	assert(self);
@@ -489,17 +490,17 @@ void msg_encode(msg_t* self, iobuf_t* buf){
 	iter = hash_iter_new(self->head);
 	e = hash_iter_next(iter);
 	while(e){
-		iobuf_putkv(buf, hash_entry_key(e), hash_entry_val(e));
+		buf_putkv(buf, hash_entry_key(e), hash_entry_val(e));
 		e = hash_iter_next(iter);
 	}
 	hash_iter_destroy(&iter);
-	iobuf_putstr(buf, "\r\n");
+	buf_putstr(buf, "\r\n");
 	if(self->body){
-		iobuf_put(buf, self->body, self->body_len);
+		buf_put(buf, self->body, self->body_len);
 	}
 }
 
-msg_t* msg_decode(iobuf_t* buf){ 
+msg_t* msg_decode(buf_t* buf){ 
 	msg_t* msg;
 	char* head_str,* p;
 	void* body;
@@ -508,9 +509,9 @@ msg_t* msg_decode(iobuf_t* buf){
 	if(head_len < 0){
 		return NULL;
 	} 
-	iobuf_mark(buf); 
+	buf_mark(buf); 
 	head_str = malloc(head_len+1); 
-	iobuf_get(buf, head_str, head_len);
+	buf_get(buf, head_str, head_len);
 	head_str[head_len] = '\0';
 	msg = msg_parse_head(head_str);
 	free(head_str); 
@@ -521,212 +522,22 @@ msg_t* msg_decode(iobuf_t* buf){
 	}
 
 	body_len = atoi(p);
-	if(iobuf_remaining(buf) < body_len){
+	if(buf_remaining(buf) < body_len){
 		msg_destroy(&msg);
-		iobuf_reset(buf); 
+		buf_reset(buf); 
 		return NULL;
 	} 
 	body = malloc(body_len);
-	iobuf_get(buf, body, body_len);
+	buf_get(buf, body, body_len);
 	msg_set_body_nocopy(msg, body, body_len); 
 	return msg;
 }
 
 void msg_print(msg_t* self){
-	iobuf_t* buf = iobuf_new(1024);
+	buf_t* buf = buf_new(1024);
 	msg_encode(self, buf);
-	iobuf_print(buf);
-	iobuf_destroy(&buf);
-}
-
-
-//////////////////////////IOBUF/////////////////////////
-
-iobuf_t* iobuf_new(int capacity){ 
-	void* array;
-	assert(capacity>0);
-	array = malloc(capacity);
-	return iobuf_wrap(array, capacity);
-}
-
-iobuf_t* iobuf_dup(iobuf_t* buf){
-	iobuf_t* self = malloc(sizeof(*self)); 
-	memset(self, 0, sizeof(*self)); 
-	self->capacity = buf->capacity;
-	self->data = buf->data;
-	self->position = buf->position;
-	self->limit = buf->limit;
-	self->mark = buf->mark;
-	self->own_data = 0;
-	return self;
-}
-
-iobuf_t* iobuf_wrap(char array[], int len){
-	iobuf_t* self = malloc(sizeof(*self)); 
-	memset(self, 0, sizeof(*self)); 
-	self->capacity = len;
-	self->data = array;
-	self->position = 0;
-	self->limit = len;
-	self->mark = -1;
-	self->own_data = 1;
-	return self;
-}
-
-int iobuf_mv(iobuf_t* self, int n){
-	if(n>self->position) return 0;
-	memcpy(self->data, self->data+n, self->position-n);
-	self->position -= n;
-	if(self->mark > self->position) self->mark = -1;  
-	return n;
-}
-
-int iobuf_auto_expand(iobuf_t* self, int need){  
-	int new_cap = self->capacity;
-	int new_size = self->position + need;
-	char* new_data;
-	if(self->own_data == 0) return -1; //can not expand for duplicated
-	while(new_size>new_cap){
-		new_cap *= 2;
-	}
-	if(new_cap == self->capacity) return 0;//nothing changed
-
-	new_data = malloc(new_cap);
-	memcpy(new_data, self->data, self->capacity);
-	free(self->data);
-	self->data = new_data;
-	self->capacity = new_cap;
-	self->limit = new_cap;
-	return 1;
-}
-void iobuf_print(iobuf_t* self){
-	char* data = malloc(self->position+1);
-	memcpy(data, self->data, self->position);
-	data[self->position] = '\0';
-	printf("%s\n", data);
-	free(data);
-}
-void iobuf_destroy(iobuf_t** self_p){
-	iobuf_t* self = *self_p;
-	if(!self) return;   
-	if(self->data && self->own_data){
-		free(self->data);
-	}
-	free(self);
-	*self_p = NULL;
-}
-
-void iobuf_mark(iobuf_t* self){
-	self->mark = self->position;
-}
-void iobuf_reset(iobuf_t* self){
-	int m = self->mark;
-	if(m < 0){
-		perror("mark not set, reset discard");
-		return;
-	}
-	self->position = m;
-}
-int iobuf_remaining(iobuf_t* self){
-	return self->limit - self->position;
-}
-iobuf_t* iobuf_flip(iobuf_t* self){
-	self->limit = self->position;
-	self->position = 0;
-	self->mark = -1;
-	return self;
-}
-char* iobuf_begin(iobuf_t* self){
-	assert(self);
-	return self->data+self->position;
-}
-char* iobuf_end(iobuf_t* self){
-	assert(self);
-	return self->data+self->limit;
-}
-
-iobuf_t* iobuf_limit(iobuf_t* self, int new_limit){
-	if(new_limit>self->capacity || new_limit<0){
-		perror("set new limit error, discarding");
-		return self;
-	}
-	self->limit = new_limit;
-	if(self->position > self->limit) self->position = self->limit;
-	if(self->mark > self->limit) self->mark = -1; 
-	return self;
-}
-
-
-int iobuf_get(iobuf_t* self, char data[], int len){ 
-	int copy_len = iobuf_copyout(self, data, len);
-	if(copy_len>0){
-		iobuf_drain(self, len); 
-	}
-	return copy_len;
-}
-
-int iobuf_copyout(iobuf_t* self, char data[], int len){ 
-	if(iobuf_remaining(self)<len){
-		return -1;
-	}
-	memcpy(data, self->data+self->position, len); 
-	return len;
-}
-
-int iobuf_put(iobuf_t* self, void* data, int len){
-	iobuf_auto_expand(self, len);
-	memcpy(self->data+self->position, data, len);
-	iobuf_drain(self, len); 
-	return len;
-}
-
-int iobuf_putbuf(iobuf_t* self, iobuf_t* buf){
-	return iobuf_put(self, buf->data+buf->position, iobuf_remaining(buf));
-}
-int iobuf_putstr(iobuf_t* self, char* str){
-	return iobuf_put(self, str, strlen(str));
-}
-
-int iobuf_putkv(iobuf_t* self, char* key, char* val){
-	int len = 0;
-	len += iobuf_putstr(self, key);
-	len += iobuf_putstr(self, ": ");
-	len += iobuf_putstr(self, val);
-	len += iobuf_putstr(self, "\r\n");
-	return len;
-}
-
-int iobuf_drain(iobuf_t* self, int n){
-	int res = n;
-	int new_pos;
-	if(n<=0) return 0;
-	new_pos = self->position +n;
-	if(new_pos>self->limit){
-		new_pos = self->limit;
-		res = new_pos - self->position;
-	}
-	self->position = new_pos; 
-	if(self->mark > self->position) self->mark = -1;  
-	return res;
-}
- 
-
-int test_msg(int argc, char* argv[]){
-	int i;
-	iobuf_t* buf = iobuf_new(1);
-	msg_t* msg = msg_new();
-	msg_set_command(msg, "produce");
-	msg_set_mq(msg, "MyMQ");
-	for(i=0;i<1000000;i++){
-		msg_encode(msg, buf);
-		iobuf_print(buf);
-		iobuf_flip(buf);
-		msg_destroy(&msg);
-		msg = msg_decode(buf); 
-	}
-	printf("=done=");
-	getchar();
-	return 0;
+	buf_print(buf);
+	buf_destroy(&buf);
 }
 
 

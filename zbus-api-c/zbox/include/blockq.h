@@ -19,6 +19,8 @@ ZBOX_EXPORT void
 	blockq_push(blockq_t *self, void *msg);
 ZBOX_EXPORT void* 
 	blockq_pop(blockq_t *self);
+ZBOX_EXPORT void* 
+	blockq_pop_timed(blockq_t *self, int64_t millis_timeout);
 ZBOX_EXPORT int 
 	blockq_length(blockq_t *self);
 

@@ -1,7 +1,8 @@
 #ifndef __ZBOX_MSG_H_
 #define __ZBOX_MSG_H_
 
-#include "platform.h"  
+#include "platform.h" 
+#include "buffer.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,46 +76,10 @@ ZBOX_EXPORT void  msg_set_topic(msg_t* self, char* value);
 ZBOX_EXPORT char* msg_get_encoding(msg_t* self);
 ZBOX_EXPORT void  msg_set_encoding(msg_t* self, char* value);
 
-ZBOX_EXPORT void   msg_encode(msg_t* self, iobuf_t* buf);
-ZBOX_EXPORT msg_t* msg_decode(iobuf_t* buf);
+ZBOX_EXPORT void   msg_encode(msg_t* self, buf_t* buf);
+ZBOX_EXPORT msg_t* msg_decode(buf_t* buf);
 ZBOX_EXPORT void   msg_print(msg_t* self);
 ZBOX_EXPORT char*  msg_copy_body(msg_t* self);
-
-
- 
-struct iobuf{
-	int mark;
-	int position;
-	int limit;
-	int capacity; 
-	int own_data;
-	char* data; 
-};
-
-//IO»º´æ²Ù×÷
-ZBOX_EXPORT iobuf_t* iobuf_new(int capacity);
-ZBOX_EXPORT iobuf_t* iobuf_dup(iobuf_t* buf);
-ZBOX_EXPORT iobuf_t* iobuf_wrap(char array[], int len); 
-ZBOX_EXPORT void     iobuf_destroy(iobuf_t** self_p); 
-
-ZBOX_EXPORT void iobuf_mark(iobuf_t* self);
-ZBOX_EXPORT void iobuf_reset(iobuf_t* self);
-ZBOX_EXPORT int  iobuf_remaining(iobuf_t* self);
-ZBOX_EXPORT int  iobuf_drain(iobuf_t* self, int n);
-ZBOX_EXPORT int  iobuf_copyout(iobuf_t* self, char data[], int len);
-ZBOX_EXPORT int  iobuf_get(iobuf_t* self, char data[],int len);
-ZBOX_EXPORT int  iobuf_put(iobuf_t* self, void* data, int len);
-ZBOX_EXPORT int  iobuf_putstr(iobuf_t* self, char* str);
-ZBOX_EXPORT int  iobuf_putkv(iobuf_t* self, char* key, char* val);
-ZBOX_EXPORT int  iobuf_putbuf(iobuf_t* self, iobuf_t* buf); 
-
-ZBOX_EXPORT char*    iobuf_begin(iobuf_t* self);
-ZBOX_EXPORT char*    iobuf_end(iobuf_t* self);
-ZBOX_EXPORT iobuf_t* iobuf_flip(iobuf_t* self);
-ZBOX_EXPORT int      iobuf_mv(iobuf_t* self, int n);
-ZBOX_EXPORT iobuf_t* iobuf_limit(iobuf_t* self, int new_limit);
-ZBOX_EXPORT void     iobuf_print(iobuf_t* self);
- 
 
 #ifdef __cplusplus
 }
