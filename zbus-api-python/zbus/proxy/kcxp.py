@@ -6,7 +6,7 @@ from zbus import Caller, Message
 import json, base64
 
 #kcxp公共参数封装
-def gen_kcxp_param(func_no=None , ip_address = None , channel='g' , operway='g'):
+def gen_kcxp_param_map(func_no=None , ip_address = None , channel='g' , operway='g'):
     parms = {}
     #----common KCXP公共参数封装辅助类 -- 
     parms['F_FUNCTION'] = func_no 
@@ -31,6 +31,60 @@ def gen_kcxp_param(func_no=None , ip_address = None , channel='g' , operway='g')
     parms['g_checksno'] = ''
     return parms
 
+def gen_kcxp_param(func_no=None , ip_address = None , channel='g' , operway='g'):
+    parms = []
+    #----common KCXP公共参数封装辅助类 -- 
+    parms.append('F_FUNCTION')
+    parms.append(func_no)
+    parms.append('F_SUBSYS')
+    parms.append('1')
+    parms.append('F_OP_USER')
+    parms.append('8888')
+    parms.append('F_OP_ROLE')
+    parms.append('2')
+    parms.append('F_OP_SITE')
+    parms.append(ip_address)
+    parms.append('F_CHANNEL')
+    parms.append(channel)
+    parms.append('F_SESSION')
+    parms.append('')
+    parms.append('F_RUNTIME')
+    parms.append('')
+    parms.append('F_REMOTE_OP_ORG')
+    parms.append('')
+    parms.append('F_REMOTE_OP_USER')
+    parms.append('')
+    parms.append('OP_USER')
+    parms.append('8888')
+    
+    #----common g开头公共入参 --
+    parms.append('g_serverid')
+    parms.append('1')
+    parms.append('g_funcid')
+    parms.append(func_no)
+    parms.append('g_operid')
+    parms.append('8888')
+    parms.append('g_operpwd')
+    parms.append('')
+    parms.append('g_operway')
+    parms.append(operway)
+    parms.append('g_stationaddr')
+    parms.append(ip_address)
+    parms.append('g_checksno')
+    parms.append('')
+    return parms
+
+def array_to_map(a):
+    N = len(a)
+    if N%2 != 0:
+        raise Exception('array element count should be even')
+    i = 0
+    res = {}
+    while i<N:
+        res[a[i]] = a[i+1]
+        i += 2;
+    return res
+        
 
 class Kcxp(Caller):
     
@@ -40,9 +94,12 @@ class Kcxp(Caller):
         Caller.__init__(self, broker=broker, mq = mq, access_token=access_token,
                  register_token=register_token ) 
         self.encoding = encoding
-
     
-    def request(self, args, timeout=10):
+    def request(self, array_params, timeout=10):
+        args = array_to_map(array_params)
+        return self.request_map(args, timeout)
+    
+    def request_map(self, args, timeout=10):
         method = args['F_FUNCTION']  
         
         json_req = {'method': method, 'params': [args]} 
@@ -85,6 +142,6 @@ class Kcxp(Caller):
         return rtn_result
 
 __all__ = [
-    Kcxp, gen_kcxp_param
+    Kcxp, gen_kcxp_param, gen_kcxp_param_map
 ]    
 

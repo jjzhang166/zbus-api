@@ -4,7 +4,8 @@ from zbus import SingleBroker
  
 
 #创建一个Broker（管理链接，抽象zbus节点。 高可用版本可直接换HaBroker即可）
-broker = SingleBroker(host='localhost', port=15555)
+#broker = SingleBroker(host='172.24.180.45', port=15555)
+broker = SingleBroker(host='127.0.0.1', port=15555)
 trade = Trade(broker=broker, mq='Trade') 
 
 
