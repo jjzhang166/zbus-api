@@ -26,11 +26,24 @@ namespace zbus.Remoting
         private string msgidMatch = null;
         private IDictionary<string, Message> resultTable = new Dictionary<string, Message>();
 
+        private DateTime timeCreated = DateTime.Now;
+        public DateTime TimeCreated
+        {
+            get { return timeCreated; }
+            set { timeCreated = value; }
+        }
+
         public RemotingClient(string address)
         {
             string[] blocks = address.Split(':');
             this.host = blocks[0];
             this.port = int.Parse(blocks[1]);
+        }
+
+        public bool IsConnected()
+        {
+            if (client == null) return false;
+            return client.Connected;
         }
 
         public void ConnectIfNeeded()

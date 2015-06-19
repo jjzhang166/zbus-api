@@ -363,6 +363,16 @@ namespace zbus.Remoting
             IoBuffer buf = new IoBuffer();
             Encode(buf);
             return buf.ReadAllToString();
-        } 
+        }
+
+        public string GetBody()
+        {
+            return System.Text.Encoding.Default.GetString(body);
+        }
+
+        public string GetBody(System.Text.Encoding encoding)
+        {
+            return encoding.GetString(body);
+        }
     }
 }

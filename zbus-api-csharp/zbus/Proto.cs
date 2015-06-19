@@ -20,7 +20,7 @@ namespace zbus
         public static readonly string Request     = "request";    //请求等待应答消息  
         public static readonly string Heartbeat   = "heartbeat";  //心跳消息
         public static readonly string Admin       = "admin";      //管理类消息
-        public static readonly string CreateMQ    = "create_mq";      
+        public static readonly string AdminCreateMQ    = "create_mq";      
         public static readonly string TrackReport = "track_report";
         public static readonly string TrackSub    = "track_sub";
         public static readonly string TrackPub    = "track_pub";
@@ -33,6 +33,22 @@ namespace zbus
             msg.SubCommand = subcmd;
             msg.SetJsonBody(JSON.Instance.ToJSON(args));
             return msg;
+        }
+    }
+
+    public class ZbusException : Exception
+    {
+        public ZbusException()
+        {
+        }
+
+        public ZbusException(string message)
+            : base(message)
+        {
+        }
+        public ZbusException(string message, Exception inner)
+            : base(message, inner)
+        {
         }
     }
 }

@@ -7,51 +7,37 @@ using zbus.Remoting;
 
 namespace zbus
 {
-    public class Producer
+    public class Producer: MqAdmin
     {
-        private string mq;
-        private string token;
-        private int mode;
-        private RemotingClient client;
-        public string Token
+        public Producer(Broker broker, String mq, params MessageMode[] modes)
+            :base(broker, mq, modes)
         {
-            get { return this.token; }
-            set { this.token = value; }
         }
 
-        public Producer(RemotingClient client, string mq, params MessageMode[] mode)
+        public Producer(MqConfig config)
+            :base(config)
         {
-            this.client = client;
-            this.mq = mq; 
-            if (mode.Length == 0)
-            {
-                this.mode = (int)MessageMode.MQ;
-            }
-            else
-            {
-                this.mode = 0;
-                foreach (MessageMode m in mode)
-                {
-                    this.mode |= (int)m;
-                }
-            }
         }
+      
 
         public Message Send(Message msg, int timeout)
         {
             msg.Command = Proto.Produce;
             msg.Mq = this.mq;
-            msg.Token = this.token;
+            msg.Token = this.accessToken;
 
-            return this.client.Invoke(msg, timeout);
+            return this.broker.InvokeSync(msg, timeout);
         }
 
         public static void Main_Producer(string[] args)
         {
-            RemotingClient client = new RemotingClient("127.0.0.1:15555");
+            SingleBrokerConfig config = new SingleBrokerConfig();
+            config.brokerAddress = "127.0.0.1:15555";
+            Broker broker = new SingleBroker(config);
 
-            Producer producer = new Producer(client, "MyMQ", MessageMode.MQ);
-            
+            Producer producer = new Producer(broker, "MyMQ", MessageMode.MQ);
+            producer.CreateMQ();
+
             Message msg = new Message();
             msg.Topic = "qhee";
             msg.SetBody("hello world from C# {0}", DateTime.Now);

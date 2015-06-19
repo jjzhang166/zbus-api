@@ -6,76 +6,32 @@ using System.IO;
 using System.Net.Sockets;
 
 using zbus.Remoting;
-
+using zbus.Logging;
 namespace zbus
 {
-    public class Consumer
+    public class Consumer : MqAdmin, IDisposable
     {
-        private RemotingClient client;
-        private string mq;
-        private string accessToken;
-        private string registerToken;
-        private int mode;
-        private int readTimeout = 3000; 
+        private static readonly ILogger log = LoggerFactory.GetLogger(typeof(Consumer));
+        private RemotingClient client = null;
         private string topic = null;
-
-        public string Topic
+        
+        public Consumer(Broker broker, String mq, params MessageMode[] modes)
+            :base(broker, mq, modes)
         {
-            get { return this.topic; }
-            set { this.topic = value; }
         }
 
-        public string AccessToken
+        public Consumer(MqConfig config)
+            :base(config)
         {
-            get { return this.accessToken; }
-            set { this.accessToken = value; }
-        }
-
-        public string RegisterToken
-        {
-            get { return this.registerToken; }
-            set { this.registerToken = value; }
-        }
-
-
-        public Consumer(RemotingClient client, string mq, params MessageMode[] mode)
-        {
-            this.client = client;
-            this.mq = mq; 
-            if (mode.Length == 0)
-            {
-                this.mode = (int)MessageMode.MQ;
-            }
-            else
-            {
-                this.mode = 0;
-                foreach (MessageMode m in mode)
-                {
-                    this.mode |= (int)m;
-                }
-            }
-        }
-
-        public bool Register()
-        {
-            IDictionary<string, string> args = new Dictionary<string, string>();
-            args.Add("mqName", mq);
-    	    args.Add("accessToken", accessToken);
-            args.Add("mqMode", "" + this.mode);
-
-            Message req = Proto.BuildSubCommandMessage(Proto.Admin, Proto.CreateMQ, args);
-            req.Token = this.RegisterToken;
-            Message res = this.client.Invoke(req, this.readTimeout);
-            if (res == null)
-            {
-                return false;
-            }
-            return res.IsStatus200();
-
+            this.topic = config.topic;
         }
 
         public Message Recv(int timeout)
         {
+            if (this.client == null)
+            {
+                this.client = broker.GetClient(GetClientHint());
+            }
             Message req = new Message();
             req.Command = Proto.Consume;
             req.Mq = this.mq;
@@ -89,12 +45,12 @@ namespace zbus
             }
             try { 
 
-                Message res = this.client.Invoke(req, timeout);
+                Message res = this.broker.InvokeSync(req, timeout);
                 if (res != null && res.IsStatus404())
                 {
-                    if (!this.Register())
+                    if (!this.CreateMQ())
                     {
-                        throw new SystemException("register error");
+                        throw new ZbusException("register error");
                     }
                     return Recv(timeout);
                 }
@@ -132,20 +88,47 @@ namespace zbus
 
         private void HandleFailover()
         {
-            this.client.Reconnect();
+            try
+            {
+                broker.CloseClient(this.client);
+                this.client = broker.GetClient(GetClientHint());
+            }
+            catch (IOException ex)
+            {
+                log.Error(ex.Message, ex);
+            }
+            
+        }
+
+        public void Dispose()
+        {
+            if (this.client != null)
+            {
+                broker.CloseClient(this.client);
+            }
         }
 
         public static void Main_Consumer(string[] args)
         {
-            RemotingClient client = new RemotingClient("127.0.0.1:15555");
-            Consumer csm = new Consumer(client, "MyMQ"); 
+
+            SingleBrokerConfig config = new SingleBrokerConfig();
+            config.brokerAddress = "127.0.0.1:15555";
+            Broker broker = new SingleBroker(config);
+
+
+            Consumer c = new Consumer(broker, "MyMQ");
+
             while (true)
             {
-                Message msg = csm.Recv(10000);
+                Message msg = c.Recv(30000);
                 if (msg == null) continue;
-                Console.WriteLine(msg);
-            } 
- 
+
+                System.Console.WriteLine(msg);
+            }
+
+            c.Dispose();
+            broker.Dispose();
+            Console.ReadKey();
         }
     }
 }

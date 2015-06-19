@@ -4,6 +4,7 @@ import socket, uuid
 import threading, time
 import json
 import inspect
+import zbus
 try:
     import Queue
 except:
@@ -732,10 +733,18 @@ class Rpc(Caller):
         req = {'module': self.module, 'method': self.method, 'params': args}
         msg = Message() 
         msg.set_json_body(json.dumps(req, encoding=self.encoding)) 
-        return Caller.invoke(self, msg, self.timeout)
+        try:
+            res = Caller.invoke(self, msg, self.timeout)
+        except Exception, e:
+            error_msg = 'Error: %s\nMQ(%s)-module(%s)-method(%s) request timeout\n%s'%(e, self.mq, self.module, self.method, msg)
+            raise Exception(error_msg)
+        if res is None:
+            error_msg = 'MQ(%s)-module(%s)-method(%s) request timeout\n%s'%(self.mq, self.module, self.method, msg)
+            raise Exception(error_msg)
+        return res
     
     def __call__(self, *args): 
-        res = self.invoke(args)   
+        res = self.invoke(args)  
         obj = json.loads(res.body, encoding=res.get_encoding()) 
         
         if not res.is_status200():

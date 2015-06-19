@@ -38,7 +38,8 @@
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject />
+    <StartupObject>
+    </StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -64,15 +65,20 @@
     <Compile Include="logging\ConsoleLogger.cs" />
     <Compile Include="logging\ILogger.cs" />
     <Compile Include="logging\LoggerFactory.cs" />
+    <Compile Include="remoting\Pool.cs" />
     <Compile Include="remoting\IoBuffer.cs" />
     <Compile Include="remoting\Message.cs" />
     <Compile Include="remoting\Meta.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="remoting\RemotingClient.cs" />
+    <Compile Include="zbus\Broker.cs" />
     <Compile Include="zbus\Consumer.cs" />
     <Compile Include="zbus\Caller.cs" />
+    <Compile Include="zbus\MqAdmin.cs" />
+    <Compile Include="zbus\MqConfig.cs" />
     <Compile Include="zbus\Producer.cs" />
     <Compile Include="zbus\Proto.cs" />
+    <Compile Include="zbus\Service.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
