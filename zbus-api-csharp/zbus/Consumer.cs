@@ -45,7 +45,7 @@ namespace zbus
             }
             try { 
 
-                Message res = this.broker.InvokeSync(req, timeout);
+                Message res = this.client.Invoke(req, timeout);
                 if (res != null && res.IsStatus404())
                 {
                     if (!this.CreateMQ())
