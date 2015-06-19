@@ -619,7 +619,7 @@ class Caller:
         msg.set_mq(self.mq)
         msg.set_token(self.access_token) 
         self.log.debug('Request: %s'%msg) 
-        res = self.broker.invoke(msg)
+        res = self.broker.invoke(msg, timeout)
         self.log.debug('Result: %s'%res)
         return res        
 
@@ -729,32 +729,50 @@ class Rpc(Caller):
         rpc.method = name; 
         return rpc
     
+    def _error_msg(self, msg_req):
+        return '=========RPC Context=========\nMQ(%s)-Module(%s)-Method(%s)\n=========Message Dump========\n%s'%(self.mq, self.module, self.method, msg_req)
+    
     def invoke(self, args): 
         req = {'module': self.module, 'method': self.method, 'params': args}
-        msg = Message() 
-        msg.set_json_body(json.dumps(req, encoding=self.encoding)) 
+        msg_req = Message() 
+        msg_req.set_json_body(json.dumps(req, encoding=self.encoding)) 
+        
         try:
-            res = Caller.invoke(self, msg, self.timeout)
-        except Exception, e:
-            error_msg = 'Error: %s\nMQ(%s)-module(%s)-method(%s) request timeout\n%s'%(e, self.mq, self.module, self.method, msg)
+            msg_res = Caller.invoke(self, msg_req, self.timeout)
+        except socket.timeout, e:
+            error_msg = 'Request Timeout\n%s'%(self._error_msg(msg_req))
+            raise Exception(error_msg) 
+        except socket.error, e:
+            error_msg = '%s\n%s'%(e, self._error_msg(msg_req))
+            raise Exception(error_msg) 
+        
+        if msg_res is None:
+            error_msg = self._error_msg(msg_req)
             raise Exception(error_msg)
-        if res is None:
-            error_msg = 'MQ(%s)-module(%s)-method(%s) request timeout\n%s'%(self.mq, self.module, self.method, msg)
+        
+        if msg_res.is_status404():
+            msg_res_body = msg_res.body
+            error_msg = '%s\n%s'%(msg_res_body, self._error_msg(msg_req))
             raise Exception(error_msg)
-        return res
+        
+        res = json.loads(msg_res.body, encoding=msg_res.get_encoding()) 
+        
+        if not msg_res.is_status200():
+            error_text = 'unknown error' 
+            if 'stackTrace' in res: error_text = res['stackTrace']
+            elif 'error' in res: error_text = res['error'] 
+            error_msg = '%s\n%s'%(error_text, self._error_msg(msg_req))
+            raise Exception(error_msg)
+        
+        if 'result' in res:
+            return res['result']
+        
+        error_text = 'bad json result format'
+        error_msg = '%s\n%s'%(error_text, self._error_msg(msg_req))
+        raise Exception(error_msg) 
     
     def __call__(self, *args): 
-        res = self.invoke(args)  
-        obj = json.loads(res.body, encoding=res.get_encoding()) 
-        
-        if not res.is_status200():
-            msg = 'unknown error'
-            if 'stackTrace' in obj: msg = obj['stackTrace']
-            raise Exception(msg)
-        if 'result' in obj:
-            return obj['result']
-        raise Exception('bad json result format')
-
+        return self.invoke(args)  
 
 class RpcServiceHandler(ServiceHandler):
     def __init__(self): 

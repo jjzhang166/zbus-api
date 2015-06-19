@@ -28,22 +28,5 @@ namespace zbus
 
             return this.broker.InvokeSync(msg, timeout);
         }
-
-        public static void Main_Producer(string[] args)
-        {
-            SingleBrokerConfig config = new SingleBrokerConfig();
-            config.brokerAddress = "127.0.0.1:15555";
-            Broker broker = new SingleBroker(config);
-
-            Producer producer = new Producer(broker, "MyMQ", MessageMode.MQ);
-            producer.CreateMQ();
-
-            Message msg = new Message();
-            msg.Topic = "qhee";
-            msg.SetBody("hello world from C# {0}", DateTime.Now);
-            msg = producer.Send(msg, 10000); 
-
-            Console.ReadKey();
-        }
     }
 }

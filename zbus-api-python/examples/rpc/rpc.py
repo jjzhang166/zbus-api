@@ -7,11 +7,13 @@ from zbus import SingleBroker, Rpc
 broker = SingleBroker(host='127.0.0.1', port=15555)
 
 rpc = Rpc(broker=broker, 
-          mq='MyRpc', 
-          module='Interface')
+          mq='MyRpc2', 
+          module='Interface',
+          encoding='utf8',
+          timeout=10)
 
-for i in range(1000):
-    print rpc.plus(1,2)
+
+print rpc.testEncoding()
 
 broker.destroy()
 

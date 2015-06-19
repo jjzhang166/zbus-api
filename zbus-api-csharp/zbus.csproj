@@ -73,7 +73,7 @@
     <Compile Include="remoting\RemotingClient.cs" />
     <Compile Include="zbus\Broker.cs" />
     <Compile Include="zbus\Consumer.cs" />
-    <Compile Include="zbus\Caller.cs" />
+    <Compile Include="zbus\Rpc.cs" />
     <Compile Include="zbus\MqAdmin.cs" />
     <Compile Include="zbus\MqConfig.cs" />
     <Compile Include="zbus\Producer.cs" />

@@ -107,28 +107,5 @@ namespace zbus
                 broker.CloseClient(this.client);
             }
         }
-
-        public static void Main_Consumer(string[] args)
-        {
-
-            SingleBrokerConfig config = new SingleBrokerConfig();
-            config.brokerAddress = "127.0.0.1:15555";
-            Broker broker = new SingleBroker(config);
-
-
-            Consumer c = new Consumer(broker, "MyMQ");
-
-            while (true)
-            {
-                Message msg = c.Recv(30000);
-                if (msg == null) continue;
-
-                System.Console.WriteLine(msg);
-            }
-
-            c.Dispose();
-            broker.Dispose();
-            Console.ReadKey();
-        }
     }
 }
